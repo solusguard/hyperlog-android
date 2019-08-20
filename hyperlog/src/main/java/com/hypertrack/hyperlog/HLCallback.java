@@ -24,7 +24,7 @@ SOFTWARE.
 */
 package com.hypertrack.hyperlog;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import com.hypertrack.hyperlog.error.HLErrorResponse;
 
