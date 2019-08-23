@@ -592,9 +592,14 @@ public class HyperLog {
      * @param callback          Instance of {@link HLCallback}.
      * @throws IllegalArgumentException if the API endpoint url is empty or null
      */
-    public static void pushLogs(Context mContext, HashMap<String, String> additionalHeaders,
+    public static void pushLogs(Context mContext, boolean sendRawData,  HashMap<String, String> additionalHeaders,
                                 boolean compress, HLCallback callback) {
-        pushLogs(mContext, null, additionalHeaders, compress, callback);
+
+        if (sendRawData) {
+            pushLogs(mContext, additionalHeaders, callback);
+        } else {
+            pushLogs(mContext, null, additionalHeaders, compress, callback);
+        }
     }
 
     /**
@@ -695,6 +700,97 @@ public class HyperLog {
             logsBatchCount--;
         }
     }
+
+
+    /**
+     * Call this method to push logs from device to the server with a raw data
+     * <p>
+     * Logs will get delete from the device once it successfully push to the server.
+     * <p>
+     * If device log count is greater than {@value DeviceLogTable#DEVICE_LOG_REQUEST_QUERY_LIMIT}
+     * then log will push to the server in batches.
+     *
+     * @param mContext          The current context.
+     * @param additionalHeaders Additional Headers to pass along with request.
+     * @param callback          Instance of {@link HLCallback}.
+     * @throws IllegalArgumentException if the API endpoint url is empty or null
+     */
+    public static void pushLogs(Context mContext, HashMap<String, String> additionalHeaders, final HLCallback callback) {
+
+        if (!isInitialize())
+            return;
+
+        if (TextUtils.isEmpty(URL)) {
+            HyperLog.e(TAG, "API endpoint URL is missing. Set URL using " +
+                    "HyperLog.setURL method");
+            return;
+        }
+
+        VolleyUtils.cancelPendingRequests(mContext, TAG);
+
+        if (TextUtils.isEmpty(URL)) {
+            HyperLog.e(TAG, "URL is missing. Please set the URL to push the logs.");
+            return;
+        }
+        if (!hasPendingDeviceLogs())
+            return;
+
+        //Check how many batches of device logs are available to push
+        int logsBatchCount = getDeviceLogBatchCount();
+
+        final int[] temp = {logsBatchCount};
+        final boolean[] isAllLogsPushed = {true};
+
+        while (logsBatchCount != 0) {
+
+            final List<DeviceLogModel> deviceLogs = getDeviceLogs(false, logsBatchCount);
+            deviceLogs.add(new DeviceLogModel(getFormattedLog(Log.INFO, TAG_HYPERLOG,
+                    "Log Counts: " + deviceLogs.size() + " | File Size: " +
+                            deviceLogs.toString().length() + " bytes.")));
+
+            String data = Utils.getStringData(deviceLogs);
+            HLHTTPPostRequest hlhttpPostRequest = new HLHTTPPostRequest<>(URL, data,additionalHeaders, context, Object.class,
+
+                    new Response.Listener<Object>() {
+                        @Override
+                        public void onResponse(Object response) {
+                            temp[0]--;
+                            mDeviceLogList.clearDeviceLogs(deviceLogs);
+                            HyperLog.i(TAG, "Log has been pushed");
+
+                            if (callback != null && temp[0] == 0) {
+                                if (isAllLogsPushed[0]) {
+                                    callback.onSuccess(response);
+                                } else {
+                                    HLErrorResponse HLErrorResponse = new HLErrorResponse(
+                                            "All logs hasn't been pushed");
+                                    callback.onError(HLErrorResponse);
+                                }
+                            }
+                        }
+                    }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    HLErrorResponse HLErrorResponse = new HLErrorResponse(error);
+                    isAllLogsPushed[0] = false;
+                    temp[0]--;
+                    error.printStackTrace();
+                    HyperLog.exception(TAG, "Error has occurred while pushing " +
+                            "logs: ", error);
+
+                    if (temp[0] == 0) {
+                        if (callback != null) {
+                            callback.onError(HLErrorResponse);
+                        }
+                    }
+                }
+            });
+
+            VolleyUtils.addToRequestQueue(mContext, hlhttpPostRequest, TAG);
+            logsBatchCount--;
+        }
+    }
+
 
     /**
      * Call this method to delete all logs from device.

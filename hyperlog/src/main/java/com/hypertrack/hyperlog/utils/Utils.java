@@ -105,6 +105,14 @@ public class Utils {
         return stringBuilder.toString().getBytes();
     }
 
+    public static String getStringData(List<DeviceLogModel> deviceLogs) {
+        StringBuilder stringBuilder = new StringBuilder();
+        for (DeviceLogModel deviceLog : deviceLogs) {
+            stringBuilder.append(deviceLog.getDeviceLog()).append("\n");
+        }
+        return stringBuilder.toString();
+    }
+
     public static void saveLogFormat(Context context, LogFormat logFormat) {
         SharedPreferences.Editor editor = getSharedPreferencesEditor(context);
         editor.putString(HL_LOG_FORMAT_KEY, new GsonBuilder().create().toJson(logFormat));

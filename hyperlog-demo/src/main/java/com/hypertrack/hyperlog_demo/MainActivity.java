@@ -133,6 +133,7 @@ public class MainActivity extends AppCompatActivity {
         params.put("timezone", TimeZone.getDefault().getID());
 
         HyperLog.pushLogs(this, params, true, new HLCallback() {
+        HyperLog.pushLogs(this, true, params, false, new HLCallback() {
             @Override
             public void onSuccess(@NonNull Object response) {
                 showToast("Log Pushed");
