@@ -760,7 +760,7 @@ public class HyperLog {
 
                             if (callback != null && temp[0] == 0) {
                                 if (isAllLogsPushed[0]) {
-                                    callback.onSuccess(response);
+                                    callback.onSuccess(response==null?new Object():response);
                                 } else {
                                     HLErrorResponse HLErrorResponse = new HLErrorResponse(
                                             "All logs hasn't been pushed");
